@@ -25,11 +25,12 @@ DOOR_DEVICE_CLASS = "door"
 
 # Platforms
 BINARY_SENSOR = "binary_sensor"
+SENSOR = "sensor"
 SWITCH = "switch"
 LIGHT = "light"
 CAMERA = "camera"
 SELECT = "select"
-PLATFORMS = [BINARY_SENSOR, SWITCH, LIGHT, CAMERA, SELECT]
+PLATFORMS = [BINARY_SENSOR, SENSOR, SWITCH, LIGHT, CAMERA, SELECT]
 
 
 # Configuration and options

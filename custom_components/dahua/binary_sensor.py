@@ -52,7 +52,6 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_devices):
     # For doorbells we'll just add these since most people will want them
     if coordinator.is_doorbell():
         sensors.append(DahuaEventSensor(coordinator, entry, "DoorbellPressed"))
-        sensors.append(DahuaEventSensor(coordinator, entry, "Invite"))
         sensors.append(DahuaEventSensor(coordinator, entry, "DoorStatus"))
         sensors.append(DahuaEventSensor(coordinator, entry, "CallNoAnswered"))
 
