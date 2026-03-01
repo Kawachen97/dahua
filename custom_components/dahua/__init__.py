@@ -50,6 +50,7 @@ SSL_CONTEXT.verify_mode = ssl.CERT_NONE
 
 _LOGGER: logging.Logger = logging.getLogger(__package__)
 
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up this integration using UI."""
     if hass.data.get(DOMAIN) is None:
@@ -151,6 +152,7 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
         # A dictionary of event name (CrossLineDetection, VideoMotion, etc) to the time the event fire or was cleared.
         # If cleared the time will be 0. The time unit is seconds epoch
         self._dahua_event_timestamp: Dict[str, int] = dict()
+        self._dahua_event_data: Dict[str, dict] = dict()
 
         self._floodlight_mode = 2
 
@@ -292,7 +294,6 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
                     pass
                 _LOGGER.info("Device supports Lighting_V2=%s", self._supports_lighting_v2)
 
-
                 if not is_doorbell:
                     # Start the event listeners for IP cameras
                     await self.async_start_event_listener()
@@ -331,7 +332,7 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
                     # I believe this API is missing on some cameras so we'll just ignore it and move on
                     _LOGGER.debug("Could not get profile mode", exc_info=exception)
                     pass
-            
+
             # We need the ptz status
             if self._supports_ptz_position:
                 try:
@@ -364,9 +365,8 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
                 coros.append(asyncio.ensure_future(self.client.async_get_video_analyse_rules_for_amcrest()))
             if self.is_amcrest_doorbell():
                 coros.append(asyncio.ensure_future(self.client.async_get_light_global_enabled()))
-            if self._supports_lighting_v2:   #add lighing_v2 API if it is supported
+            if self._supports_lighting_v2:  # add lighing_v2 API if it is supported
                 coros.append(asyncio.ensure_future(self.client.async_get_lighting_v2()))
-
 
             # Gather results and update the data map
             results = await asyncio.gather(*coros)
@@ -449,6 +449,8 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
                         self._dahua_event_timestamp[event_key] = int(time.time())
                     else:
                         self._dahua_event_timestamp[event_key] = 0
+                elif code == "Invite":
+                    self._dahua_event_data[event_key] = event.get("Data", {})
                 else:
                     state = event.get("Data", {}).get("State", 0)
                     if state == 1:
@@ -558,6 +560,14 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
         event_key = self.get_event_key(event_name)
         return self._dahua_event_timestamp.get(event_key, 0)
 
+    def get_event_data(self, event_name: str) -> int:
+        """
+        Returns the event timestamp. If the event is firing then it will be the time of the firing. Otherwise returns 0.
+        event_name: the event name, example: CrossLineDetection
+        """
+        event_key = self.get_event_key(event_name)
+        return self._dahua_event_data.get(event_key, 0)
+
     def add_dahua_event_listener(self, event_name: str, listener: CALLBACK_TYPE):
         """ Adds an event listener for the given event (CrossLineDetection, etc).
         This callback will be called when the event fire """
@@ -610,7 +620,7 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
         """
         if not self._supports_lighting:
             return False
-        return "-AS-PV" not in self.model and "-AS-NI" not in self.model and "LED-S2" not in self.model     #IPC-HFW2439SP-SA-LED-S2 also has no infrared light
+        return "-AS-PV" not in self.model and "-AS-NI" not in self.model and "LED-S2" not in self.model  # IPC-HFW2439SP-SA-LED-S2 also has no infrared light
 
     def supports_floodlightmode(self) -> bool:
         """ Returns true if this camera supports floodlight mode """
@@ -621,13 +631,13 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
         Returns true if this camera has an illuminator (white light for color cameras).  For example, the
         IPC-HDW3849HP-AS-PV does
         """
-        return  not (self.is_amcrest_doorbell() or self.is_flood_light()) and "table.Lighting_V2[{0}][0][0].Mode".format(self._channel) in self.data   
-    
+        return not (self.is_amcrest_doorbell() or self.is_flood_light()) and "table.Lighting_V2[{0}][0][0].Mode".format(self._channel) in self.data
+
     def supports_ptz_position(self) -> bool:
         """
         Returns true if this camera supports PTZ preset position
         """
-        return  not (self.is_amcrest_doorbell() or self.is_flood_light()) and "table.Lighting_V2[{0}][0][0].Mode".format(self._channel) in self.data   
+        return not (self.is_amcrest_doorbell() or self.is_flood_light()) and "table.Lighting_V2[{0}][0][0].Mode".format(self._channel) in self.data
 
     def is_motion_detection_enabled(self) -> bool:
         """ Returns true if motion detection is enabled for the camera """
@@ -684,7 +694,7 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
 
     def is_infrared_light_on(self) -> bool:
         """ returns true if the infrared light is on """
-        return self.data.get("table.Lighting[{0}][0].Mode".format(self._channel),"") == "Manual"
+        return self.data.get("table.Lighting[{0}][0].Mode".format(self._channel), "") == "Manual"
 
     def get_infrared_brightness(self) -> int:
         """Return the brightness of this light, as reported by the camera itself, between 0..255 inclusive"""
@@ -695,7 +705,7 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
     def is_illuminator_on(self) -> bool:
         """Return true if the illuminator light is on"""
         # profile_mode 0=day, 1=night, 2=scene
-        profile_mode = self.get_profile_mode()       
+        profile_mode = self.get_profile_mode()
         return self.data.get("table.Lighting_V2[{0}][{1}][0].Mode".format(self._channel, profile_mode), "") == "Manual"
 
     def is_flood_light_on(self) -> bool:
