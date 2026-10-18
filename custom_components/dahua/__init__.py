@@ -560,13 +560,14 @@ class DahuaDataUpdateCoordinator(DataUpdateCoordinator):
         event_key = self.get_event_key(event_name)
         return self._dahua_event_timestamp.get(event_key, 0)
 
-    def get_event_data(self, event_name: str) -> int:
+    def get_event_data(self, event_name: str) -> dict:
         """
-        Returns the event timestamp. If the event is firing then it will be the time of the firing. Otherwise returns 0.
-        event_name: the event name, example: CrossLineDetection
+        Returns the data of the last received event, for example the UserID of an Invite event.
+        Returns an empty dict if no such event was received yet (for example right after a restart).
+        event_name: the event name, example: Invite
         """
         event_key = self.get_event_key(event_name)
-        return self._dahua_event_data.get(event_key, 0)
+        return self._dahua_event_data.get(event_key, {})
 
     def add_dahua_event_listener(self, event_name: str, listener: CALLBACK_TYPE):
         """ Adds an event listener for the given event (CrossLineDetection, etc).
